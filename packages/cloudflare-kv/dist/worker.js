@@ -13,9 +13,35 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deleteRecord = exports.findRecord = exports.putRecord = exports.handleRequest = void 0;
 const cborg_1 = __webpack_require__(/*! cborg */ "../../node_modules/cborg/esm/cborg.js");
 const MAX_RECORDS = 3;
-function toPathComponents(path = '') {
+function toPathComponents(path = "") {
     // split on / unless escaped with \
     return (path.trim().match(/([^\\^/]|\\\/)+/g) || []).filter(Boolean);
+}
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS",
+    "Access-Control-Max-Age": "86400",
+};
+function handleOptions(request) {
+    // Make sure the necessary headers are present
+    // for this to be a valid pre-flight request
+    const headers = request.headers;
+    if (headers.get("Origin") !== null &&
+        headers.get("Access-Control-Request-Method") !== null &&
+        headers.get("Access-Control-Request-Headers") !== null) {
+        return new Response(null, {
+            headers: corsHeaders,
+        });
+    }
+    else {
+        // Handle standard OPTIONS request.
+        // If you want to allow other HTTP Methods, you can do that here.
+        return new Response(null, {
+            headers: {
+                Allow: "GET, HEAD, POST, OPTIONS",
+            },
+        });
+    }
 }
 async function handleRequest(request) {
     const url = new URL(request.url);
@@ -26,15 +52,17 @@ async function handleRequest(request) {
         return fetch(request);
     }
     switch (request.method) {
-        case 'PUT':
+        case "PUT":
             if (request.body) {
                 return putRecord(key, request.body);
             }
             return fetch(request);
-        case 'GET':
+        case "GET":
             return findRecord(key);
-        case 'DELETE':
+        case "DELETE":
             return deleteRecord(key);
+        case "OPTIONS":
+            return handleOptions(request);
         default:
             return fetch(request);
     }
@@ -49,12 +77,14 @@ async function findRecord(key) {
     const { keys } = await RECORDS.list({ prefix: key });
     const results = [];
     for (const k of keys) {
-        const rec = await RECORDS.get(k.name, { type: 'arrayBuffer' });
+        const rec = await RECORDS.get(k.name, { type: "arrayBuffer" });
         if (rec && results.length <= MAX_RECORDS) {
             results.push(rec);
         }
     }
-    return new Response((0, cborg_1.encode)(results));
+    return new Response((0, cborg_1.encode)(results), {
+        headers: corsHeaders,
+    });
 }
 exports.findRecord = findRecord;
 async function deleteRecord(key) {
