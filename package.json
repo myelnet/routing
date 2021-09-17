@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "name": "routing",
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "author": "tchardin <thomas@myel.dev>",
+  "license": "MIT",
+  "devDependencies": {
+    "prettier": "^2.4.1"
+  }
+}
