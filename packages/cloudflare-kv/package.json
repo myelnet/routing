@@ -37,6 +37,7 @@
     "webpack-cli": "^4.7.0"
   },
   "dependencies": {
-    "cborg": "^1.5.0"
+    "cborg": "^1.5.0",
+    "multiaddr": "^10.0.1"
   }
 }
