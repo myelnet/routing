@@ -80,7 +80,7 @@ export async function putRecord(key: string, req: Request): Promise<Response> {
   const record = decode(new Uint8Array(buf));
   const addr = new Multiaddr(record[0]);
   await RECORDS.put(key, req.body, {
-    metadata: { multiaddr: addr.toString() },
+    metadata: { multiaddr: addr.toString(), size: record[2] },
     expirationTtl: 907200, // ~10days
   });
   return new Response(key);
@@ -91,8 +91,11 @@ export async function findRecord(key: string): Promise<Response> {
   const results: ArrayBuffer[] = [];
   for (const k of keys) {
     const rec = await RECORDS.get(k.name, { type: "arrayBuffer" });
-    if (rec && results.length <= MAX_RECORDS) {
+    if (rec) {
       results.push(rec);
+    }
+    if (results.length === MAX_RECORDS) {
+      break;
     }
   }
   return new Response(encode(results), {
@@ -106,17 +109,29 @@ export async function deleteRecord(key: string): Promise<Response> {
   return new Response(key);
 }
 
+type Metadata = {
+  [key: string]: any;
+};
+
+type LightRecord = {
+  k: string; // CID;
+  v: string; // Peer addr;
+  s: number; // size;
+};
+
 // list the first 30 records set
 export async function listRecords(): Promise<Response> {
   const { keys } = await RECORDS.list({ limit: 30 });
-  const results: ArrayBuffer[] = [];
+  const results: LightRecord[] = [];
   for (const k of keys) {
-    const rec = await RECORDS.get(k.name, { type: "arrayBuffer" });
-    if (rec) {
-      results.push(rec);
-    }
+    const meta = k.metadata as Metadata;
+    results.push({
+      k: k.name,
+      v: meta.multiaddr,
+      s: meta.size,
+    });
   }
-  return new Response(encode(results), {
+  return new Response(JSON.stringify(results), {
     headers: corsHeaders,
   });
 }
@@ -128,7 +143,7 @@ export async function listPeers(): Promise<Response> {
   const added: { [key: string]: boolean } = {};
 
   for (const k of keys) {
-    const metadata = k.metadata as { [key: string]: any };
+    const metadata = k.metadata as Metadata;
     const peeraddr: string = metadata.multiaddr;
     if (!added[peeraddr]) {
       results.push(peeraddr);
